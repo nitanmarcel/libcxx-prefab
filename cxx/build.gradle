@@ -9,8 +9,10 @@ plugins {
 android {
     compileSdkVersion 31
     buildToolsVersion "30.0.3"
+    ndkVersion "26.3.11579264"
+    namespace "dev.rikka.ndk.thirdparty"
     defaultConfig {
-        minSdkVersion 16
+        minSdkVersion 21
         targetSdkVersion 31
         versionCode 1
         versionName "1.2.0"
@@ -25,6 +27,10 @@ android {
         prefabPublishing true
         buildConfig false
     }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
     externalNativeBuild {
         ndkBuild {
             path "jni/Android.mk"
@@ -34,41 +40,6 @@ android {
         cxx {
             headers "$rootDir/cxx-source/include"
         }
-    }
-}
-
-// NDK does not run strip on static libraries, do it ourselves
-def allAbi = [
-        'armeabi-v7a': 'arm-linux-androideabi-strip',
-        'arm64-v8a'  : 'aarch64-linux-android-strip',
-        'x86'        : 'i686-linux-android-strip',
-        'x86_64'     : 'x86_64-linux-android-strip']
-
-def stripNativeRelease = task('stripNativeRelease').doLast {
-    def isWindows = org.gradle.internal.os.OperatingSystem.current().isWindows()
-
-    for (String abi : allAbi.keySet()) {
-        def path = Paths.get(project.buildDir.path, 'intermediates',
-                'ndkBuild', 'release', 'obj', 'local', abi)
-        def lib = path.resolve('libcxx.a')
-
-        def toolchain = Paths.get(android.ndkDirectory.toString(), 'toolchains', 'llvm', 'prebuilt')
-        toolchain = Files.walk(toolchain).filter { it != toolchain }.findFirst().get()
-
-        def strip = "${allAbi.get(abi)}${isWindows ? ".exe" : ""}"
-        def stripPath = toolchain.resolve(Paths.get('bin', strip))
-
-        exec {
-            commandLine stripPath, '--strip-unneeded', '--remove-section=.comment', lib
-            workingDir path
-            ignoreExitValue false
-        }
-    }
-}
-
-tasks.whenTaskAdded { task ->
-    if (task.name == 'externalNativeBuildRelease') {
-        task.finalizedBy stripNativeRelease
     }
 }
 
